@@ -7,7 +7,7 @@
 # check out codebase
 # ===============================================
 work='/glade/work/linnia/'
-tag='ctsm5.4.000'
+tag='ctsm5.4.004'
 
 cd $work
 git clone --branch ${tag} https://github.com/ESCOMP/CTSM.git $tag
@@ -19,6 +19,7 @@ cd $tag
 # ===============================================
 
 casedir='/glade/work/linnia/calLMIP/basecases/'
+user_mods_dir='/glade/work/linnia/calLMIP/usermods_dirs/'
 site='DK-Sor'
 export PROJECT=P93300041
 chargenum=P93300041
@@ -30,8 +31,7 @@ conda activate ctsm_pylib
 # setup AD spinup (accelerated decomposition)
 # ===============================================
 
-AD_casename='ctsm54000_bgc_'${site}'_AD'
-user_mods_dir=/glade/work/linnia/calLMIP/usermods_dirs/
+AD_casename='ctsm54004_bgc_'${site}'_AD_test'
 
 cd ${work}${tag}/cime/scripts/
 
@@ -40,13 +40,8 @@ cd ${work}${tag}/cime/scripts/
 cd ${casedir}${AD_casename}
 ./case.setup --reset
 
-# namelist changes
-# add user_nl_clm changes
-echo "hist_fincl1 += 'PCO2','TBOT'" >> user_nl_clm
-
 # env_run.xml
-./xmlchange STOP_N=180
-./xmlchange RESUBMIT=1
+./xmlchange STOP_N=180 
 ./xmlchange CLM_ACCELERATED_SPINUP=on
 ./xmlchange CLM_FORCE_COLDSTART=on
 
@@ -64,7 +59,7 @@ echo "hist_fincl1 += 'PCO2','TBOT'" >> user_nl_clm
 # setup SASU spinup (matrix)
 # ==============================================
 
-SASU_casename='ctsm54000_bgc_'${site}'_SASU'
+SASU_casename='ctsm54004_bgc_'${site}'_SASU_test'
 
 cd ${work}${tag}/cime/scripts/
 
@@ -74,12 +69,13 @@ cd ${casedir}${SASU_casename}
 ./case.setup --reset
 
 # user_nl_clm mods
-finidat=$(ls ${SCRATCH}/${AD_casename}'/run/'${AD_casename}".clm2.r."*".nc" | tail -n 1)
+echo "clm_start_type = 'startup'" >> user_nl_clm
+
+finidat=$(ls ${SCRATCH}/archive/${AD_casename}'/rest/0'*'/'*".clm2.r."*".nc" | tail -n 1)
 finidat=$(echo $finidat) #expands wildcard
 echo "finidat = '$finidat'" >> user_nl_clm
 
-./xmlchange STOP_N=160 
-./xmlchange RESUBMIT=1
+./xmlchange STOP_N=180 
 ./xmlchange CLM_ACCELERATED_SPINUP=sasu
 ./xmlchange CLM_FORCE_COLDSTART=off
 
@@ -93,7 +89,7 @@ echo "finidat = '$finidat'" >> user_nl_clm
 # setup postSASU spinup 
 # ==============================================
 
-pSASU_casename='ctsm54000_bgc_'${site}'_pSASU'
+pSASU_casename='ctsm54004_bgc_'${site}'_pSASU_test'
 
 cd ${work}${tag}/cime/scripts/
 
@@ -104,12 +100,12 @@ cd ${casedir}${pSASU_casename}
 
 # user_nl_clm mods
 echo "clm_start_type='startup'" >> user_nl_clm
-finidat=$(ls ${SCRATCH}/${SASU_casename}'/run/'${SASU_casename}".clm2.r."*".nc" | tail -n 1)
+finidat=$(ls ${SCRATCH}/${AD_casename}'/run/'${AD_casename}".clm2.r."*".nc" | tail -n 1)
 finidat=$(echo $finidat) #expands wildcard
 echo "finidat = '$finidat'" >> user_nl_clm
 
 ./xmlchange STOP_N=180 
-./xmlchange RESUBMIT=1
+./xmlchange RESUBMIT=0
 ./xmlchange CLM_ACCELERATED_SPINUP=off
 ./xmlchange CLM_FORCE_COLDSTART=off
 
@@ -118,16 +114,6 @@ echo "finidat = '$finidat'" >> user_nl_clm
 
 # Submit case
 #./case.submit
-
-# ===============================================
-# create transient pre-tower case (1850-1997)
-# ===============================================
-
-
-# ===============================================
-# create tower case (2000-2023)
-# ===============================================
-
 
 
 
