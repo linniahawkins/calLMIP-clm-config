@@ -21,6 +21,7 @@ module load conda
 conda activate ctsm_pylib
 
 AD_casename='ctsm54004_bgc_'${site}'_AD_spin'
+AD2_casename='ctsm54004_bgc_'${site}'_AD_spin2'
 postAD_casename='ctsm54004_bgc_'${site}'_postAD_spin'
 postAD2_casename='ctsm54004_bgc_'${site}'_postAD_spin2'
 
@@ -30,7 +31,8 @@ postAD2_casename='ctsm54004_bgc_'${site}'_postAD_spin2'
 
 checkout_codebase=0
 do_AD=0
-do_postAD=1
+do_AD2=1
+do_postAD=0
 do_postAD2=0
 
 # ===============================================
@@ -72,6 +74,37 @@ if [ "$do_AD" -eq 1 ]; then
 fi
 
 # ==============================================
+# setup AD part2 spinup 
+# ==============================================
+
+if [ "$do_AD2" -eq 1 ]; then
+    cd ${work}${tag}/cime/scripts/
+
+    ./create_clone --case ${casedir}${AD2_casename} --clone ${casedir}${AD_casename} --project ${chargenum}
+
+    cd ${casedir}${AD2_casename}
+    ./case.setup --reset
+
+    # user_nl_clm mods
+    echo "clm_start_type = 'startup'" >> user_nl_clm
+
+    finidat=$(ls ${SCRATCH}/archive/${AD_casename}'/rest/0'*'/'*".clm2.r."*".nc" | tail -n 1)
+    finidat=$(echo $finidat) #expands wildcard
+    echo "finidat = '$finidat'" >> user_nl_clm
+
+    ./xmlchange STOP_N=180 
+    ./xmlchange CLM_ACCELERATED_SPINUP=on
+    ./xmlchange CLM_FORCE_COLDSTART=off
+
+    ./xmlchange JOB_WALLCLOCK_TIME=06:00:00
+
+    ./preview_namelists
+    ./case.build
+    ./case.submit
+
+fi
+
+# ==============================================
 # setup postAD spinup 
 # ==============================================
 
@@ -86,7 +119,7 @@ if [ "$do_postAD" -eq 1 ]; then
     # user_nl_clm mods
     echo "clm_start_type = 'startup'" >> user_nl_clm
 
-    finidat=$(ls ${SCRATCH}/archive/${AD_casename}'/rest/0'*'/'*".clm2.r."*".nc" | tail -n 1)
+    finidat=$(ls ${SCRATCH}/archive/${AD2_casename}'/rest/0'*'/'*".clm2.r."*".nc" | tail -n 1)
     finidat=$(echo $finidat) #expands wildcard
     echo "finidat = '$finidat'" >> user_nl_clm
 
