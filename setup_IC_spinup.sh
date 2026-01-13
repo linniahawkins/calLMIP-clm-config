@@ -1,22 +1,15 @@
+#!/bin/bash
+
 # ===============================================
 # instructions for setting up initial spin up 
 # for calLMIP PLUMBER sites
-# (just instructions, this is not meant to be executed)
 
 # ===============================================
-# check out codebase
+# config
 # ===============================================
+
 work='/glade/work/linnia/'
 tag='ctsm5.4.004'
-
-cd $work
-git clone --branch ${tag} https://github.com/ESCOMP/CTSM.git $tag
-cd $tag
-./bin/git-fleximod update
-
-# ===============================================
-# create spin up base cases for DK-Sor
-# ===============================================
 
 casedir='/glade/work/linnia/calLMIP/basecases/'
 user_mods_dir='/glade/work/linnia/calLMIP/usermods_dirs/'
@@ -27,94 +20,112 @@ chargenum=P93300041
 module load conda
 conda activate ctsm_pylib
 
+AD_casename='ctsm54004_bgc_'${site}'_AD_spin'
+postAD_casename='ctsm54004_bgc_'${site}'_postAD_spin'
+postAD2_casename='ctsm54004_bgc_'${site}'_postAD_spin2'
+
+# ==============================================
+# do these one at a time, wait until each stage completes
+# ===============================================
+
+checkout_codebase=0
+do_AD=0
+do_postAD=1
+do_postAD2=0
+
+# ===============================================
+# check out codebase
+# ===============================================
+
+if [ "$checkout_codebase" -eq 1 ]; then
+    cd $work
+    git clone --branch ${tag} https://github.com/ESCOMP/CTSM.git $tag
+    cd $tag
+    ./bin/git-fleximod update
+fi
+
 # ===============================================
 # setup AD spinup (accelerated decomposition)
 # ===============================================
 
-AD_casename='ctsm54004_bgc_'${site}'_AD_test'
+if [ "$do_AD" -eq 1 ]; then
 
-cd ${work}${tag}/cime/scripts/
+    cd ${work}${tag}/cime/scripts/
 
-./create_newcase --case ${casedir}${AD_casename} --res CLM_USRDAT --compset 1850_DATM%1PT_CLM60%BGC_SICE_SOCN_SROF_SGLC_SWAV_SESP --project ${chargenum} --run-unsupported --user-mods-dirs ${user_mods_dir}${site}
+    ./create_newcase --case ${casedir}${AD_casename} --res CLM_USRDAT --compset 1850_DATM%1PT_CLM60%BGC_SICE_SOCN_SROF_SGLC_SWAV_SESP --project ${chargenum} --run-unsupported --user-mods-dirs ${user_mods_dir}${site}
 
-cd ${casedir}${AD_casename}
-./case.setup --reset
+    cd ${casedir}${AD_casename}
+    ./case.setup --reset
 
-# env_run.xml
-./xmlchange STOP_N=180 
-./xmlchange CLM_ACCELERATED_SPINUP=on
-./xmlchange CLM_FORCE_COLDSTART=on
+    # env_run.xml
+    ./xmlchange STOP_N=180 
+    ./xmlchange CLM_ACCELERATED_SPINUP=on
+    ./xmlchange CLM_FORCE_COLDSTART=on
 
-./xmlchange JOB_WALLCLOCK_TIME=06:00:00
-./xmlchange JOB_QUEUE=develop
-./xmlchange JOB_PRIORITY=regular
+    ./xmlchange JOB_WALLCLOCK_TIME=06:00:00
+    ./xmlchange JOB_QUEUE=develop
+    ./xmlchange JOB_PRIORITY=regular
 
-./preview_namelists
-./case.build
-
-# Submit case
-#./case.submit
+    ./preview_namelists
+    ./case.build
+    ./case.submit
+fi
 
 # ==============================================
-# setup SASU spinup (matrix)
+# setup postAD spinup 
 # ==============================================
 
-SASU_casename='ctsm54004_bgc_'${site}'_SASU_test'
+if [ "$do_postAD" -eq 1 ]; then
+    cd ${work}${tag}/cime/scripts/
 
-cd ${work}${tag}/cime/scripts/
+    ./create_clone --case ${casedir}${postAD_casename} --clone ${casedir}${AD_casename} --project ${chargenum}
 
-./create_clone --case ${casedir}${SASU_casename} --clone ${casedir}${AD_casename} --project ${chargenum}
+    cd ${casedir}${postAD_casename}
+    ./case.setup --reset
 
-cd ${casedir}${SASU_casename}
-./case.setup --reset
+    # user_nl_clm mods
+    echo "clm_start_type = 'startup'" >> user_nl_clm
 
-# user_nl_clm mods
-echo "clm_start_type = 'startup'" >> user_nl_clm
+    finidat=$(ls ${SCRATCH}/archive/${AD_casename}'/rest/0'*'/'*".clm2.r."*".nc" | tail -n 1)
+    finidat=$(echo $finidat) #expands wildcard
+    echo "finidat = '$finidat'" >> user_nl_clm
 
-finidat=$(ls ${SCRATCH}/archive/${AD_casename}'/rest/0'*'/'*".clm2.r."*".nc" | tail -n 1)
-finidat=$(echo $finidat) #expands wildcard
-echo "finidat = '$finidat'" >> user_nl_clm
+    ./xmlchange STOP_N=180 
+    ./xmlchange CLM_ACCELERATED_SPINUP=off
+    ./xmlchange CLM_FORCE_COLDSTART=off
 
-./xmlchange STOP_N=180 
-./xmlchange CLM_ACCELERATED_SPINUP=sasu
-./xmlchange CLM_FORCE_COLDSTART=off
+    ./xmlchange JOB_WALLCLOCK_TIME=06:00:00
 
-./preview_namelists
-./case.build
+    ./preview_namelists
+    ./case.build
+    ./case.submit
 
-# Submit case
-#./case.submit
+fi
 
 # ===============================================
-# setup postSASU spinup 
-# ==============================================
+# setup postAD_part2 spinup 
+# ===============================================
 
-pSASU_casename='ctsm54004_bgc_'${site}'_pSASU_test'
+if [ "$do_postAD2" -eq 1 ]; then
+    cd ${work}${tag}/cime/scripts/
 
-cd ${work}${tag}/cime/scripts/
+    ./create_clone --case ${casedir}${postAD2_casename} --clone ${casedir}${AD_casename} --project ${chargenum}
 
-./create_clone --case ${casedir}${pSASU_casename} --clone ${casedir}${AD_casename} --project ${chargenum}
+    cd ${casedir}${postAD2_casename}
+    ./case.setup --reset
 
-cd ${casedir}${pSASU_casename}
-./case.setup --reset
+    # user_nl_clm mods
+    echo "clm_start_type='startup'" >> user_nl_clm
+    finidat=$(ls ${SCRATCH}/archive/${postAD_casename}'/rest/0'*'/'*".clm2.r."*".nc" | tail -n 1)
+    finidat=$(echo $finidat) #expands wildcard
+    echo "finidat = '$finidat'" >> user_nl_clm
 
-# user_nl_clm mods
-echo "clm_start_type='startup'" >> user_nl_clm
-finidat=$(ls ${SCRATCH}/${AD_casename}'/run/'${AD_casename}".clm2.r."*".nc" | tail -n 1)
-finidat=$(echo $finidat) #expands wildcard
-echo "finidat = '$finidat'" >> user_nl_clm
+    ./xmlchange STOP_N=180 
+    ./xmlchange CLM_ACCELERATED_SPINUP=off
+    ./xmlchange CLM_FORCE_COLDSTART=off
 
-./xmlchange STOP_N=180 
-./xmlchange RESUBMIT=0
-./xmlchange CLM_ACCELERATED_SPINUP=off
-./xmlchange CLM_FORCE_COLDSTART=off
+    ./preview_namelists
+    ./case.build
+    ./case.submit
 
-./preview_namelists
-./case.build
-
-# Submit case
-#./case.submit
-
-
-
-
+fi
