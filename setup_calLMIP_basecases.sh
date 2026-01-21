@@ -66,7 +66,7 @@ cd ${casedir}${postAD_casename}
 echo "reseed_dead_plants = .false." >> user_nl_clm
 echo "clm_start_type = 'startup'" >> user_nl_clm
 
-./xmlchange STOP_N=240 
+./xmlchange STOP_N=220 
 ./xmlchange CLM_ACCELERATED_SPINUP=off
 ./xmlchange CLM_FORCE_COLDSTART=off
 
