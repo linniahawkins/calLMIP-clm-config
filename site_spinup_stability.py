@@ -1,6 +1,7 @@
 # script to evaluate spin up stability for calLMIP PLUMBER sites
 # script assumes input directory has annual variables in .h0a. streams
 # Linnia Hawkins 1/13/2026 lh3194@columbia.edu
+# Usage: python script.py <input_dir> <nyears>"
 
 import xarray as xr
 import numpy as np

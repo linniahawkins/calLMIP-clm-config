@@ -11,7 +11,7 @@
 work='/glade/work/linnia/'
 tag='ctsm5.4.004'
 
-casedir='/glade/work/linnia/calLMIP/basecases/'
+casedir='/glade/work/linnia/calLMIP/spinup/'
 user_mods_dir='/glade/work/linnia/calLMIP/usermods_dirs/'
 site='DK-Sor'
 export PROJECT=P93300041
@@ -21,9 +21,7 @@ module load conda
 conda activate ctsm_pylib
 
 AD_casename='ctsm54004_bgc_'${site}'_AD_spin'
-AD2_casename='ctsm54004_bgc_'${site}'_AD_spin2'
 postAD_casename='ctsm54004_bgc_'${site}'_postAD_spin'
-postAD2_casename='ctsm54004_bgc_'${site}'_postAD_spin2'
 
 # ==============================================
 # do these one at a time, wait until each stage completes
@@ -31,8 +29,7 @@ postAD2_casename='ctsm54004_bgc_'${site}'_postAD_spin2'
 
 checkout_codebase=0
 do_AD=0
-do_postAD=0
-do_postAD2=1
+do_postAD=1
 
 # ===============================================
 # check out codebase
@@ -91,39 +88,12 @@ if [ "$do_postAD" -eq 1 ]; then
     finidat=$(echo $finidat) #expands wildcard
     echo "finidat = '$finidat'" >> user_nl_clm
 
-    ./xmlchange STOP_N=180 
+    ./xmlchange STOP_N=240
+    ./xmlchange RESUBMIT=1
     ./xmlchange CLM_ACCELERATED_SPINUP=off
     ./xmlchange CLM_FORCE_COLDSTART=off
 
     ./xmlchange JOB_WALLCLOCK_TIME=06:00:00
-
-    ./preview_namelists
-    ./case.build
-    ./case.submit
-
-fi
-
-# ===============================================
-# setup postAD_part2 spinup 
-# ===============================================
-
-if [ "$do_postAD2" -eq 1 ]; then
-    cd ${work}${tag}/cime/scripts/
-
-    ./create_clone --case ${casedir}${postAD2_casename} --clone ${casedir}${AD_casename} --project ${chargenum}
-
-    cd ${casedir}${postAD2_casename}
-    ./case.setup --reset
-
-    # user_nl_clm mods
-    echo "clm_start_type='startup'" >> user_nl_clm
-    finidat=$(ls ${SCRATCH}/archive/${postAD_casename}'/rest/0'*'/'*".clm2.r."*".nc" | tail -n 1)
-    finidat=$(echo $finidat) #expands wildcard
-    echo "finidat = '$finidat'" >> user_nl_clm
-
-    ./xmlchange STOP_N=180 
-    ./xmlchange CLM_ACCELERATED_SPINUP=off
-    ./xmlchange CLM_FORCE_COLDSTART=off
 
     ./preview_namelists
     ./case.build

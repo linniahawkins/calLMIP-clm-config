@@ -1,0 +1,15 @@
+#!/bin/bash
+#PBS -N jobname
+#PBS -q main
+#PBS -l walltime=1:00:00
+#PBS -l job_priority=premium
+#PBS -A P93300041
+#PBS -j oe
+#PBS -k eod
+#PBS -l select=1:ncpus=1
+#PBS -W depend=afterok:jobid
+
+tdir="/glade/u/home/linnia/ctsm6_ppe/gen_ensembles/jobscripts/"
+$tdir"tether.sh" joblist "/glade/u/home/linnia/ctsm6_ppe/gen_ensembles/jobscripts/derecho.template"
+
+
